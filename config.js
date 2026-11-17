@@ -1,14 +1,21 @@
 const M = (f) => `/models/${f}`
 export const GLASSES = M('glasses.glb')
-// size = world width, at = scroll position where it crosses the centre, spd = parallax speed, rs = scroll-linked spin
+
+// Material treatment for the white sculptures so they stay readable on the white page:
+// slightly warmer, less reflective stone tone; no custom shader modifications.
+const SCULPT = { tint: .84, rough: .55, env: .75 }
+
+// size = world width, at = scroll position where it crosses the centre, spd = parallax speed.
+// Eyes spin with scroll (rs). Heads turn gently instead (ry = resting turn, turn = sweep while passing).
+// Optional rot: [x, y, z] corrects a model that was exported lying down or facing away.
 export const PROPS = [
-  { url: M('eye-anatomical.glb'), size: 1.5, at: .27, x: -2.7, z: -1, spd: 1.0, rs: 7 },
+  { url: M('eye-anatomy-study.glb'), size: 1.7, at: .27, x: -2.7, z: -1, spd: 1.0, rs: 7, look: SCULPT },
   { url: M('eye-blue.glb'), size: 1.0, at: .31, x: 2.6, z: -3, spd: .7, rs: -5 },
-  { url: M('eye-simple.glb'), size: .8, at: .35, x: -.6, z: 1.5, spd: 1.5, rs: 9 },
-  { url: M('eye-study.glb'), size: 1.9, at: .40, x: 3.0, z: -2, spd: .85, rs: 4 },
+  { url: M('eye-david-scan.glb'), size: .95, at: .35, x: -.6, z: 1.5, spd: 1.5, rs: 9, look: SCULPT },
+  { url: M('eye-sculpt.glb'), size: 1.9, at: .40, x: 3.0, z: -2, spd: .85, rs: 4, look: SCULPT },
   { url: M('eye-realistic.glb'), size: 1.2, at: .44, x: -3.1, z: -.5, spd: 1.2, rs: -6 },
-  { url: M('skull-a.glb'), size: 4.2, at: .57, x: -2.5, z: -2, spd: .8, rs: 3 },
-  { url: M('skull-b.glb'), size: 1.3, at: .62, x: 2.7, z: 1, spd: 1.6, rs: -4 }
+  { url: M('head-mannequin.glb'), size: 3.9, at: .57, x: -2.4, z: -2, spd: .8, ry: .5, turn: 2.5, look: SCULPT },
+  { url: M('head-woman.glb'), size: 2.1, at: .62, x: 2.6, z: 0, spd: 1.6, ry: -.5, turn: -2.5, look: SCULPT }
 ]
 export const GK = {
   x: [[0, 0], [.2, 2.5], [.45, -2.6], [.62, 2.4], [.78, 0], [1, 0]],

@@ -1,33 +1,54 @@
 // Puts the GLB files into public/models/ (served as /models/...).
 // Files already in public/models are kept; missing ones are downloaded from the public GitHub repo at build time.
-import { mkdir, access, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 
 const BASE = 'https://raw.githubusercontent.com/marknovikov3001-glitch/vision-eyewear/main/'
 const FILES = {
   'glasses.glb': 'glasses.glb',
-  'anatomical_eye_ball(2).glb': 'eye-anatomical.glb',
+  'anatomy_study_-_eyes.glb': 'eye-anatomy-study.glb',
   'blue_eyeball_free.glb': 'eye-blue.glb',
-  'eye(1).glb': 'eye-simple.glb',
-  'eye_study.glb': 'eye-study.glb',
+  'davids_eye_-_scan.glb': 'eye-david-scan.glb',
+  'eye_sculpt_2.glb': 'eye-sculpt.glb',
   'realistic_human_eye.glb': 'eye-realistic.glb',
-  'skull_downloadable.glb': 'skull-a.glb',
-  'skull_salazar_downloadable.glb': 'skull-b.glb'
+  'mannequin_head.glb': 'head-mannequin.glb',
+  'woman_head (1).glb': 'head-woman.glb'
 }
 await mkdir('public/models', { recursive: true })
-let failed = false
+const failures = []
+function validateGLB(buf, filename) {
+  if (buf.length < 20 || buf.subarray(0, 4).toString('ascii') !== 'glTF') {
+    throw new Error(`${filename}: invalid GLB header (possibly HTML or Git LFS pointer)`)
+  }
+  if (buf.readUInt32LE(4) !== 2 || buf.readUInt32LE(8) !== buf.length) {
+    throw new Error(`${filename}: invalid GLB version or length`)
+  }
+  if (buf.readUInt32LE(12) < 2 || buf.subarray(16, 20).toString('ascii') !== 'JSON') {
+    throw new Error(`${filename}: missing GLB JSON chunk`)
+  }
+}
 for (const [remote, local] of Object.entries(FILES)) {
   const path = `public/models/${local}`
-  try { await access(path); console.log('exists ', local); continue } catch {}
   try {
-    const res = await fetch(BASE + remote)
-    if (!res.ok) throw new Error('HTTP ' + res.status)
+    try {
+      const existing = await readFile(path)
+      validateGLB(existing, local)
+      console.log('exists ', local)
+      continue
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+    }
+    const res = await fetch(BASE + encodeURIComponent(remote))
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.subarray(0, 4).toString() !== 'glTF') throw new Error('not a GLB (Git LFS pointer or HTML?)')
+    validateGLB(buf, remote)
     await writeFile(path, buf)
     console.log('fetched', local, (buf.length / 1048576).toFixed(1) + ' MB')
   } catch (e) {
-    console.warn('FAILED ', local, e.message)
-    if (local === 'glasses.glb') failed = true
+    console.error('FAILED', local, e.message)
+    failures.push(local)
   }
 }
-if (failed) { console.error('Main product model is missing - aborting.'); process.exit(1) }
+if (failures.length) {
+  console.error('Missing or invalid required GLB models:', failures.join(', '))
+  process.exit(1)
+}

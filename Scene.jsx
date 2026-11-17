@@ -6,19 +6,36 @@ import Boundary from './Boundary.jsx'
 import { GLASSES, PROPS, GK } from './config.js'
 import { store, RM, kf, ease, clamp } from './store.js'
 
-const PARALLEL = 3 // eyes/skulls downloading at the same time, once the hero glasses are in
+const PARALLEL = 3 // eyes/heads downloading at the same time, once the hero glasses are in
 
 // Start the hero download as soon as this module loads. It shares one request with the
 // <link rel="preload"> in index.html, and useGLTF caches by URL, so nothing is fetched twice.
 useGLTF.preload(GLASSES)
 
+// Keeps the original maps and materials; only nudges tone so white sculptures stay readable on white:
+// colour tint, minimum roughness and environment strength (no custom shaders).
+function tuneMaterials(scene, look, env) {
+  scene.traverse((n) => {
+    if (!n.isMesh) return
+    ;[].concat(n.material || []).forEach((m) => {
+      if (!m || !m.isMeshStandardMaterial || m.userData.visionTuned) return
+      m.userData.visionTuned = true
+      m.color.multiplyScalar(look.tint ?? 1)
+      m.roughness = Math.max(m.roughness, look.rough ?? 0)
+      if (env) { m.envMap = env; m.envMapIntensity = look.env ?? 1 }
+      m.needsUpdate = true
+    })
+  })
+}
+
 // Loads a GLB, keeps its original materials, centres it and normalises its largest side to 1 unit.
-function Model({ url, onReady }) {
+function Model({ url, look, onReady }) {
   const { scene } = useGLTF(url)
   const gl = useThree((s) => s.gl)
   const camera = useThree((s) => s.camera)
   const root = useThree((s) => s.scene)
   const k = useMemo(() => {
+    if (look) tuneMaterials(scene, look, root.environment)
     const b = new THREE.Box3().setFromObject(scene), z = b.getSize(new THREE.Vector3())
     scene.position.sub(b.getCenter(new THREE.Vector3()))
     return 1 / Math.max(z.x, z.y, z.z, 1e-6)
@@ -90,9 +107,10 @@ function Prop({ o, onReady }) {
     const ax = store.ax, f = Math.min(1, ease(1 - a / .2) * 1.6), t = RM ? 0 : clock.elapsedTime
     g.position.set(o.x * ax, d * 16 * o.spd, o.z)
     g.scale.setScalar(o.size * Math.max(.6, ax) * f * ease(rv.current))
-    g.rotation.set(Math.sin(p * 6 + o.x) * .35, p * o.rs + t * .2, .1 * o.x)
+    if (o.turn != null) g.rotation.set(Math.sin(p * 3 + o.x) * .08, (o.ry || 0) + d * o.turn + Math.sin(t * .4) * .06, .02 * o.x)
+    else g.rotation.set(Math.sin(p * 6 + o.x) * .35, p * o.rs + t * .2, .1 * o.x)
   })
-  return <group ref={ref} visible={false}><Model url={o.url} onReady={onReady} /></group>
+  return <group ref={ref} visible={false}><group rotation={o.rot || [0, 0, 0]}><Model url={o.url} look={o.look} onReady={onReady} /></group></group>
 }
 
 export default function Scene() {
